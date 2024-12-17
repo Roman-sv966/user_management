@@ -2,7 +2,7 @@ import uuid
 import pytest
 from pydantic import ValidationError
 from datetime import datetime
-from app.schemas.user_schemas import UserBase, UserCreate, UserUpdate, UserResponse, UserListResponse, LoginRequest
+from app.schemas.user_schemas import UserBase, UserCreate, UserUpdate, UserResponse, UserListResponse, LoginRequest, UserUpdateProfile
 
 # Fixtures for common test data
 @pytest.fixture
@@ -108,3 +108,28 @@ def test_user_base_url_invalid(url, user_base_data):
     user_base_data["profile_picture_url"] = url
     with pytest.raises(ValidationError):
         UserBase(**user_base_data)
+
+@pytest.fixture
+def single_field_update_data():
+    return {"nickname": "new_nickname"}
+
+@pytest.fixture
+def all_fields_none_update_data():
+    return {
+        "nickname": None,
+        "first_name": None,
+        "last_name": None,
+        "bio": None,
+        "profile_picture_url": None,
+        "linkedin_profile_url": None,
+        "github_profile_url": None
+    }
+
+def test_user_update_profile_valid(single_field_update_data):
+    user_update = UserUpdateProfile(**single_field_update_data)
+    assert user_update.nickname == single_field_update_data["nickname"]
+
+def test_user_update_profile_invalid(all_fields_none_update_data):
+    with pytest.raises(ValidationError) as exc_info:
+        UserUpdateProfile(**all_fields_none_update_data)
+    assert "At least one field must be provided for update" in str(exc_info.value)
