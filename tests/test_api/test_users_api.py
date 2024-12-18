@@ -151,6 +151,12 @@ async def test_delete_user_does_not_exist(async_client, admin_token):
     assert delete_response.status_code == 404
 
 @pytest.mark.asyncio
+async def test_delete_user_success(async_client, verified_user, admin_token):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.delete(f"/users/{verified_user.id}", headers=headers)
+    assert response.status_code == 204
+
+@pytest.mark.asyncio
 async def test_update_user_github(async_client, admin_user, admin_token):
     updated_data = {"github_profile_url": "http://www.github.com/kaw393939"}
     headers = {"Authorization": f"Bearer {admin_token}"}
@@ -225,6 +231,24 @@ async def test_update_profile_unauthorized(async_client: AsyncClient):
     assert response.json()["detail"] == "Could not validate credentials"
 
 @pytest.mark.asyncio
+async def test_create_user_unprocessible_entity(async_client, admin_token, email_service):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    user_data = {
+        "email": "new_user@example.comBABA",
+        "password": "StrongPassword123!"
+    }
+    response = await async_client.post("/users/", json=user_data, headers=headers)
+    assert response.status_code == 422
+
+@pytest.mark.asyncio
+async def test_get_user_not_found(async_client, admin_token):
+    non_existent_user_id = "00000000-0000-0000-0000-000000000000"  # Valid UUID format
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.get(f"/users/{non_existent_user_id}", headers=headers)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+@pytest.mark.asyncio
 async def test_update_user_profile_duplicate_nickname(async_client, db_session, verified_user_and_token):
     first_user, token = verified_user_and_token
     test_user_1 = {
@@ -248,3 +272,37 @@ async def test_update_user_profile_duplicate_nickname(async_client, db_session, 
     response = await async_client.put("/update-profile/", json=updated_user_data, headers=headers)
     assert response.status_code == 400
     assert response.json()["detail"] == "Nickname already exists"
+
+@pytest.mark.asyncio
+async def test_create_user_unprocessible_data(async_client, admin_token, email_service):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    user_data = {
+        "email": "minimal_user@example.com",
+        "password": "Secure*1234!",
+    }
+    response = await async_client.post("/users/", json=user_data, headers=headers)
+    assert response.status_code == 422
+
+@pytest.mark.asyncio
+async def test_delete_user_unauthorized(async_client):
+    non_existent_user_id = "00000000-0000-0000-0000-000000000000"  # Valid UUID format
+    headers = {"Authorization": "Bearer invalid_token"}
+    response = await async_client.delete(f"/users/{non_existent_user_id}", headers=headers)
+    assert response.status_code == 401
+    assert "detail" in response.json()
+
+@pytest.mark.asyncio
+async def test_update_user_no_changes(async_client, admin_user, admin_token):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    update_data = {}  # No changes provided
+    response = await async_client.put(f"/users/{admin_user.id}", json=update_data, headers=headers)
+    assert response.status_code == 422  # Unprocessable Entity due to no data
+
+@pytest.mark.asyncio
+async def test_get_user_invalid_uuid(async_client, admin_token):
+    invalid_uuid = "12345-invalid-uuid"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await async_client.get(f"/users/{invalid_uuid}", headers=headers)
+    assert response.status_code == 422  # Unprocessable Entity
+    assert "detail" in response.json()
+
