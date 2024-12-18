@@ -30,6 +30,14 @@ async def test_create_user_with_invalid_data(db_session, email_service):
     user = await UserService.create(db_session, user_data, email_service)
     assert user is None
 
+@pytest.mark.asyncio
+async def test_verify_email_invalid_token(async_client, verified_user, email_service):
+    invalid_token = "invalid_verification_token"
+    response = await async_client.get(f"/verify-email/{verified_user.id}/{invalid_token}")
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid or expired verification token"
+
+
 # Test fetching a user by ID when the user exists
 async def test_get_by_id_user_exists(db_session, user):
     retrieved_user = await UserService.get_by_id(db_session, user.id)
